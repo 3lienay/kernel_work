@@ -1,0 +1,96 @@
+// SPDX-License-Identifier: GPL-2.0
+/dts-v1/;
+
+#include <dt-bindings/gpio/tegra-gpio.h>
+#include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/clock/tegra114-car.h>
+
+/ {
+    compatible = "nvidia,tegra114";
+    interrupt-parent = <&gic>;  // Obrigatório para Kernel 4.4
+
+    // Define a estrutura básica do SoC
+    soc {
+        compatible = "simple-bus";
+        #address-cells = <1>;
+        #size-cells = <1>;
+        ranges;
+
+        // Host1x (necessário para gráficos)
+        host1x@50000000 {
+            compatible = "nvidia,tegra114-host1x";
+            reg = <0x50000000 0x00028000>;
+            interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH>;
+        };
+
+        // Pinmux (configuração de pinos do Phobos)
+        pinmux: pinmux@70000868 {
+            compatible = "nvidia,tegra114-pinmux";
+            reg = <0x70000868 0x148>,  // Pad control registers
+                  <0x70003000 0x40c>;  // Mux registers
+        };
+
+        // I2C1 (para touchscreen - ajuste os pins conforme seu hardware)
+        i2c1: i2c@7000c000 {
+            compatible = "nvidia,tegra114-i2c";
+            reg = <0x7000c000 0x100>;
+            interrupts = <GIC_SPI 38 IRQ_TYPE_LEVEL_HIGH>;
+            #address-cells = <1>;
+            #size-cells = <0>;
+            clocks = <&tegra_car TEGRA114_CLK_I2C1>;
+            status = "okay";
+
+            // Touchscreen (Atmel MXT - ajuste o endereço e pino de IRQ)
+            touchscreen@4a {
+                compatible = "atmel,mxt-ts";
+                reg = <0x4a>;
+                interrupt-parent = <&gpio>;
+                interrupts = <TEGRA_GPIO(X, 1) IRQ_TYPE_EDGE_FALLING>;
+            };
+        };
+
+        // SDHCI (Wi-Fi/SD card - ajuste para o hardware do Phobos)
+        sdhci1: sdhci@78000600 {
+            compatible = "nvidia,tegra114-sdhci";
+            reg = <0x78000600 0x200>;
+            interrupts = <GIC_SPI 31 IRQ_TYPE_LEVEL_HIGH>;
+            clocks = <&tegra_car TEGRA114_CLK_SDMMC4>;
+            status = "okay";
+            bus-width = <4>;
+            non-removable;  // Para Wi-Fi embutido (BCM4330)
+        };
+
+        // GPIO controller
+        gpio: gpio@6000d000 {
+            compatible = "nvidia,tegra114-gpio";
+            reg = <0x6000d000 0x1000>;
+            interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>,
+                        <GIC_SPI 33 IRQ_TYPE_LEVEL_HIGH>,
+                        <GIC_SPI 34 IRQ_TYPE_LEVEL_HIGH>,
+                        <GIC_SPI 35 IRQ_TYPE_LEVEL_HIGH>;
+            #gpio-cells = <2>;
+            gpio-controller;
+            #interrupt-cells = <2>;
+            interrupt-controller;
+        };
+
+        // Controlador de interrupções (GIC)
+        gic: interrupt-controller@50041000 {
+            compatible = "arm,cortex-a15-gic";
+            #interrupt-cells = <3>;
+            interrupt-controller;
+            reg = <0x50041000 0x1000>,
+                  <0x50042000 0x1000>,
+                  <0x50044000 0x2000>,
+                  <0x50046000 0x2000>;
+        };
+
+        // Clock controller (necessário para Kernel 4.4)
+        tegra_car: clock@60006000 {
+            compatible = "nvidia,tegra114-car";
+            reg = <0x60006000 0x1000>;
+            #clock-cells = <1>;
+            #reset-cells = <1>;
+        };
+    };
+};
